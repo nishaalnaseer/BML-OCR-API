@@ -6,9 +6,10 @@ RUN apt install tesseract-ocr tesseract-ocr-eng -y
 
 WORKDIR app/
 
-COPY src .
+COPY src/ src/
 COPY main.py .
 COPY requirements.txt .
+COPY .env .
 
 RUN pip install -r requirements.txt
 
