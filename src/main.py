@@ -1,5 +1,6 @@
 import io
 from concurrent.futures import ProcessPoolExecutor
+from typing import List
 
 from PIL import Image
 from fastapi import FastAPI, HTTPException, UploadFile, File
@@ -13,27 +14,47 @@ def _process_image(contents: bytes) -> str | None:
     image = Image.open(io.BytesIO(contents))
     text = pytesseract.image_to_string(image)
 
-    # sample =/\n\nThank you. Transfer transaction is successful.\n\n1200\n\nMVR\n\nStatus SUCCESS\nThank you.
-    # Transfer transaction is\n\nMessage\nsuccessful.\nReference BLAZ123\nTransaction date 12/02/2024 20:19\nFrom
-    # AHMD.N.NASEER\n. wwhereOs\n° 7730000123456\nAmount MVR 1234.00\n\nBank of Maldives\n
-    tokens = text.split()
-
-    for token in tokens:
-        if token[:4] == "BLAZ":
-            return token
-
-    return None
+    return text
 
 
-@app.post("/ocr")
-async def image_to_string(image: UploadFile = File(...)):
+async def process_image_in_ppe(image: UploadFile):
     # Read the file contents
     contents = await image.read()
     with ProcessPoolExecutor() as executor:
         future = executor.submit(_process_image, contents)
         text = future.result()
 
-    if not text:
-        raise HTTPException(500, "Something went wrong while processing image!")
+    return text
+
+
+@app.post("/ocr", status_code=201)
+async def image_to_string(image: UploadFile = File(...)):
+    text = await process_image_in_ppe(image)
 
     return {"text": text}
+
+
+@app.post("/blaz", status_code=201)
+async def image_to_blaz(image: UploadFile = File(...)) -> dict:
+    text = await process_image_in_ppe(image)
+    tokens: List[str] = text.split()
+
+    token = ""
+    for index, token in enumerate(tokens):
+        if token[:4] == "BLAZ":
+            if len(token) == 4:
+                token = tokens[index] + tokens[index+1]
+                break
+
+            print(tokens[index+1])
+
+            if len(token) != 16 and tokens[index+1] == "Reference":
+                token = token + tokens[index+2]
+                break
+
+            break
+
+    if len(token) != 16:
+        raise HTTPException(422, f"Error finding BLAZ {tokens}")
+
+    return {"BLAZ": token}
