@@ -1,5 +1,6 @@
 #!/bin/bash
 
+git pull
 sudo docker exec ocr rm -rf /app/src
 sudo docker exec ocr rm /app/main.py
 
