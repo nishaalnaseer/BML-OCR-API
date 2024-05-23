@@ -9,6 +9,7 @@ from icecream import ic
 
 dotenv.load_dotenv()
 TESTS_SERVER = os.getenv('TESTS_SERVER')
+WORKERS = int(os.getenv('TESTS_WORKERS'))
 
 
 async def save_image(file_path: str, image_data: bytes):
@@ -44,7 +45,7 @@ async def request(path: str, failed, success):
     else:
         filename = path.replace("/", " ")
         filename = filename.replace("\\", " ")
-        await save_image(f"tests/failed_images{filename}", content.encode('utf-8'))
+        await save_image(f"tests/failed_images/{filename}", content.encode('utf-8'))
         success[path] = json.loads(content)
 
 
@@ -79,7 +80,7 @@ async def start_reqs(path, to_request, failed, succeeded):
         index = 0
 
         queue = []
-        while len(to_request) > 0 and index != 3:
+        while len(to_request) > 0 and index != WORKERS:
             path = to_request.pop()
 
             req = request(path, failed, succeeded)
