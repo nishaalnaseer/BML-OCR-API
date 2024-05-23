@@ -7,6 +7,10 @@ from PIL import Image
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pytesseract import pytesseract
 
+from src.blob import make_blaz
+from src.models import BLAZ
+from src.utils import process_image_in_ppe
+
 app = FastAPI()
 
 
@@ -31,16 +35,6 @@ def _image_to_data(contents: bytes) -> dict:
     return _dict
 
 
-async def process_image_in_ppe(image: UploadFile, function: Callable):
-    # Read the file contents
-    contents = await image.read()
-    with ProcessPoolExecutor() as executor:
-        future = executor.submit(function, contents)
-        text = future.result()
-
-    return text
-
-
 @app.post("/ocr", status_code=201)
 async def image_to_string(image: UploadFile = File(...)):
     text = await process_image_in_ppe(image, _image_to_string)
@@ -58,8 +52,8 @@ async def image_to_json(image: UploadFile = File(...)) -> dict:
     # return _json
 
 
-@app.post("/blaz", status_code=201)
-async def image_to_blaz(image: UploadFile = File(...)) -> dict:
+@app.post("/blaz/str", status_code=201)
+async def image_to_blaz_str(image: UploadFile = File(...)) -> dict:
     text = await process_image_in_ppe(image, _image_to_string)
     tokens: List[str] = text.split()
 
@@ -89,3 +83,13 @@ async def image_to_blaz(image: UploadFile = File(...)) -> dict:
 @app.post("/blaz/data", status_code=201)
 async def image_to_data(image: UploadFile = File(...)) -> dict:
     return await process_image_in_ppe(image, _image_to_json)
+
+
+@app.post("/blaz", status_code=201)
+async def image_to_blaz(image: UploadFile = File(...)) -> BLAZ:
+    content = await image.read()
+    with ProcessPoolExecutor() as executor:
+        future = executor.submit(make_blaz, content)
+        result = future.result()
+
+    return result
