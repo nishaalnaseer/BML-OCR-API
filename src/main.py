@@ -90,6 +90,10 @@ async def image_to_blaz(image: UploadFile = File(...)) -> BLAZ:
     content = await image.read()
     with ProcessPoolExecutor() as executor:
         future = executor.submit(make_blaz, content)
-        result = future.result()
+
+        try:
+            result = future.result()
+        except ValueError:
+            raise HTTPException(422, "Could not process image")
 
     return result

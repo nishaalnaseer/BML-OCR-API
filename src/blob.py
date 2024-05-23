@@ -128,7 +128,7 @@ def make_blaz(content: bytes) -> BLAZ:
     lower = status_end
 
     status_cropped = image.crop((status_x_cors, upper, right, lower))
-    status_cropped.save("status.jpg")
+    # status_cropped.save("status.jpg")
 
     # crop message block
     message_section_start = lower + 10
