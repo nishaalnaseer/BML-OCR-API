@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-
+from aiofiles import os as aio_os
 import aiofiles
 from httpx import AsyncClient
 import dotenv
@@ -9,6 +9,11 @@ from icecream import ic
 
 dotenv.load_dotenv()
 TESTS_SERVER = os.getenv('TESTS_SERVER')
+
+
+async def save_image(file_path: str, image_data: bytes):
+    async with aiofiles.open(file_path, 'wb') as f:
+        await f.write(image_data)
 
 
 class Failed:
@@ -37,6 +42,9 @@ async def request(path: str, failed, success):
     if status_code != 201:
         failed[path] = content
     else:
+        filename = path.replace("/", " ")
+        filename = filename.replace("\\", " ")
+        await save_image(f"tests/failed_images{filename}", content.encode('utf-8'))
         success[path] = json.loads(content)
 
 
