@@ -93,7 +93,7 @@ async def image_to_blaz(image: UploadFile = File(...)) -> BLAZ:
 
         try:
             result = future.result()
-        except ValueError:
+        except (ValueError, KeyError):
             raise HTTPException(422, "Could not process image")
 
     return result

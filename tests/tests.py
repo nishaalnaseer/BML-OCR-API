@@ -27,7 +27,7 @@ async def request(path: str, failed, success):
 
     async with AsyncClient(timeout=30) as client:
         response = await client.post(
-            url=f"{TESTS_SERVER}/blaz/json", files=files
+            url=f"{TESTS_SERVER}/blaz", files=files
         )
 
     status_code = response.status_code

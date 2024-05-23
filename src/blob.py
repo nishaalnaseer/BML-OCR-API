@@ -1,12 +1,8 @@
-import json
-from concurrent.futures import ProcessPoolExecutor
-from datetime import datetime
 from io import BytesIO
 from typing import List, Any, Tuple
 
 import xmltodict
-from fastapi import HTTPException, UploadFile
-from icecream import ic
+from fastapi import HTTPException
 from PIL import Image
 from pytesseract import pytesseract
 
