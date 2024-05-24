@@ -41,7 +41,7 @@ async def request(path: str, failed, success):
         filename = path.replace("/", " ")
         filename = filename.replace("\\", " ")
         img = Image.open(path)
-        img.save(filename)
+        img.save(f"tests/failed_images/{filename}")
         success[path] = json.loads(content)
 
 
