@@ -1,7 +1,6 @@
 import asyncio
 import json
 import os
-from aiofiles import os as aio_os
 import aiofiles
 from httpx import AsyncClient
 import dotenv
@@ -11,11 +10,6 @@ from PIL import Image
 dotenv.load_dotenv()
 TESTS_SERVER = os.getenv('TESTS_SERVER')
 WORKERS = int(os.getenv('TESTS_WORKERS'))
-
-
-async def save_image(file_path: str, image_data: bytes):
-    async with aiofiles.open(file_path, 'wb') as f:
-        await f.write(image_data)
 
 
 class Failed:
@@ -46,7 +40,7 @@ async def request(path: str, failed, success):
     else:
         filename = path.replace("/", " ")
         filename = filename.replace("\\", " ")
-        img = Image.open(contents)
+        img = Image.open(path)
         img.save(filename)
         success[path] = json.loads(content)
 
