@@ -36,12 +36,12 @@ async def request(path: str, failed, success):
     content = response.content.decode()
 
     if status_code != 201:
-        failed[path] = content
-    else:
         filename = path.replace("/", " ")
         filename = filename.replace("\\", " ")
         img = Image.open(path)
         img.save(f"tests/failed_images/{filename}")
+        failed[path] = content
+    else:
         success[path] = json.loads(content)
 
 
