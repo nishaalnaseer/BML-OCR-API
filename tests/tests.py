@@ -6,6 +6,7 @@ import aiofiles
 from httpx import AsyncClient
 import dotenv
 from icecream import ic
+from PIL import Image
 
 dotenv.load_dotenv()
 TESTS_SERVER = os.getenv('TESTS_SERVER')
@@ -45,7 +46,8 @@ async def request(path: str, failed, success):
     else:
         filename = path.replace("/", " ")
         filename = filename.replace("\\", " ")
-        await save_image(f"tests/failed_images/{filename}", content.encode('utf-8'))
+        img = Image.open(contents)
+        img.save(filename)
         success[path] = json.loads(content)
 
 
