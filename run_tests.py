@@ -1,5 +1,12 @@
+from icecream import ic
+
 from tests.single_image import main
-import asyncio
+import time
 
 if __name__ == '__main__':
-    asyncio.run(main())
+
+    _time = time.time()
+    for _ in range(100):
+        main()
+
+    ic(time.time() - _time)

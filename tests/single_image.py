@@ -1,7 +1,14 @@
+from io import BytesIO
+
+from icecream import ic
+
 from src.blob import make_blaz
 from PIL import Image
 
 
-async def main():
-    image = Image.open('tests/remarks.jpg')
-    make_blaz(image)
+def main():
+    with open('tests/remarks.jpg', "rb") as f:
+        _bytes = BytesIO(f.read())
+    image = Image.open(_bytes)
+    result = make_blaz(image)
+    # ic(result)
