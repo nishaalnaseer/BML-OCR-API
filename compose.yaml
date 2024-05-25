@@ -4,7 +4,7 @@ services:
     ports:
       - "80"
     deploy:
-      replicas: 4
+      replicas: 1
 
   nginx:
     image: nginx:latest

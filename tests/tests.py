@@ -9,7 +9,7 @@ from PIL import Image
 
 dotenv.load_dotenv()
 TESTS_SERVER = os.getenv('TESTS_SERVER')
-WORKERS = int(os.getenv('TESTS_WORKERS'))
+WORKERS = 1  # int(os.getenv('TESTS_WORKERS'))
 
 
 class Failed:
@@ -21,7 +21,7 @@ class Failed:
         return f"{self.path}: {self.info}"
 
 
-async def request(path: str, failed, success):
+async def request(path: str, failed, success, image: Image):
     async with aiofiles.open(path, mode='rb') as f:
         contents = await f.read()
     files = {'image': contents}
@@ -64,7 +64,13 @@ def traverse(path: str, paths):
             ext = ext.lower()
 
             if ext == ".jpg" or ext == ".png":
-                paths.append(new_path)
+
+                try:
+                    image = Image.open(new_path)
+                except Exception:
+                    continue
+
+                paths.update({new_path: image})
 
 
 async def start_reqs(path, to_request, failed, succeeded):
@@ -72,25 +78,25 @@ async def start_reqs(path, to_request, failed, succeeded):
 
     ic(f"Going to test {len(to_request)} images")
 
-    while len(to_request) > 0:
-        index = 0
+    index = 0
+    queue = {}
+    for path, image in to_request.items():
+        if index < WORKERS:
+            queue[path] = image
+        else:
+            reqs = [
+                request(_path, failed, succeeded, _image)
+                for _path, _image in queue.items()
+            ]
+            await asyncio.gather(*reqs)
 
-        queue = []
-        while len(to_request) > 0 and index != WORKERS:
-            path = to_request.pop()
-
-            req = request(path, failed, succeeded)
-
-            queue.append(req)
-            index += 1
-
-        await asyncio.gather(*queue)
+            queue = {path: image}
 
 
 async def retrieve_json():
     path = os.getenv("TESTS_ROOT")
 
-    to_request = []
+    to_request = {}
     failed = {}
     succeeded = {}
 

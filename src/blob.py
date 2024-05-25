@@ -28,9 +28,11 @@ def _traverse(obj: dict | list, array: List[dict]):
     try:
         _append(array, "String", obj)
     except TypeError:
+        # if type is lise
         for _obj in obj:
             _traverse(_obj, array)
     except KeyError:
+        # if the traverse dict keyerrors
         try:
             next_block = obj["TextLine"]
             _traverse(next_block, array)

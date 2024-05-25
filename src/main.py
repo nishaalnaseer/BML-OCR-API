@@ -31,8 +31,8 @@ def _image_to_json(contents: bytes) -> dict:
 
 def _image_to_data(contents: bytes) -> dict:
     image = Image.open(io.BytesIO(contents))
-    _dict = pytesseract.image_to_data(image)
-    return _dict
+    _xml = pytesseract.image_to_alto_xml(image)
+    return _xml
 
 
 @app.post("/ocr", status_code=201)
