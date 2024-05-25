@@ -147,8 +147,22 @@ def make_blaz(content: bytes) -> BLAZ:
     receiver_cropped, next_y = crop_next_section(image, next_y + 10, from_x_cors)
     # receiver_cropped.save("receiver.jpg")
 
-    amount_cropped = image.crop((amount_x_cors, next_y + 10, image.width, next_y + 100))
     # amount_cropped.save("amount.jpg")
+    # print(blocks)
+
+    try:
+        remarks_block = blocks["Remarks"]
+        remarks_x_crop = get_x_crop_cors(remarks_block)
+        amount_cropped, next_y = crop_next_section(image, next_y + 10, amount_x_cors)
+        remarks_cropped, next_y = crop_next_section(image, next_y + 10, remarks_x_crop)
+        # amount_cropped.save("amount_cropped.jpg")
+        # remarks_cropped.save("remarks_cropped.jpg")
+        remarks = _format_string(_image_to_string(remarks_cropped)).rstrip()
+    except KeyError:
+        amount_end = next_y + 100
+        amount_cropped = image.crop((amount_x_cors, next_y + 10, image.width, amount_end))
+        remarks = None
+        pass
 
     status = _format_string(_image_to_string(status_cropped)).rstrip()
     message = _image_to_string(message_cropped).replace("\n", " ").rstrip()
@@ -166,6 +180,7 @@ def make_blaz(content: bytes) -> BLAZ:
         receiver=receiver,
         sender=sender,
         amount=amount,
+        remarks=remarks
     )
 
     try:

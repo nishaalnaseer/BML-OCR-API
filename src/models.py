@@ -16,3 +16,4 @@ class BLAZ(BaseModel):
     receiver: str
     sender: str
     amount: str
+    remarks: str | None
