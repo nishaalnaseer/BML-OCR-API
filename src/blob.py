@@ -1,11 +1,8 @@
-import io
-import json
+
 from collections import defaultdict
-from io import BytesIO
-from typing import List, Any, Tuple
+from typing import List, Any
 import os
 import xmltodict
-from fastapi import HTTPException
 from PIL import Image
 from icecream import ic
 from pytesseract import pytesseract
@@ -110,7 +107,7 @@ def _get_string(objects: dict, y_upper: int, y_lower: int, x_cors):
     return " ".join(strings)
 
 
-def make_blaz(image: Image) -> BLAZ:
+def make_blaz(image: Image) -> BLAZ | dict:
     xml = pytesseract.image_to_alto_xml(image)
     image_content = xmltodict.parse(xml)
 
@@ -184,4 +181,8 @@ def make_blaz(image: Image) -> BLAZ:
         remarks=remarks
     )
 
+    # ic(return_dict)
+    # if return_dict:
+    #     return blaz.model_dump()
+    # else:
     return blaz

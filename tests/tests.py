@@ -1,51 +1,38 @@
 import asyncio
 import json
 import os
-import aiofiles
-from httpx import AsyncClient
+import time
+from concurrent.futures import ProcessPoolExecutor
+from io import BytesIO
+
 import dotenv
 from icecream import ic
 from PIL import Image
+from src.blob import make_blaz
 
 dotenv.load_dotenv()
-TESTS_SERVER = os.getenv('TESTS_SERVER')
-WORKERS = 1  # int(os.getenv('TESTS_WORKERS'))
+FEED = os.getenv('TESTS_FEED')
+WORKERS = 6  # int(os.getenv('TESTS_WORKERS'))
 
 
-class Failed:
-    def __init__(self, path, info):
-        self.path = path
-        self.info = info
+async def _test(path: str, failed, success, image: Image):
+    with ProcessPoolExecutor() as executor:
+        future = executor.submit(make_blaz, *[image])
 
-    def __repr__(self):
-        return f"{self.path}: {self.info}"
-
-
-async def request(path: str, failed, success, image: Image):
-    async with aiofiles.open(path, mode='rb') as f:
-        contents = await f.read()
-    files = {'image': contents}
-
-    async with AsyncClient(timeout=30) as client:
-        response = await client.post(
-            url=f"{TESTS_SERVER}/blaz", files=files
-        )
-
-    status_code = response.status_code
-    ic(f"{path} got status code {status_code}")
-    content = response.content.decode()
-
-    if status_code != 201:
-        filename = path.replace("/", " ")
-        filename = filename.replace("\\", " ")
-        img = Image.open(path)
-        img.save(f"tests/failed_images/{filename}")
-        failed[path] = content
-    else:
-        success[path] = json.loads(content)
+        try:
+            result = future.result()
+            success[path] = "SUCCESS"
+            ic(result)
+            return result
+        except Exception as e:
+            ic(e)
+            failed[path] = str(e)
+            path = path.replace("\\", " ")
+            path = path.replace("/", " ")
+            image.save(f"tests/failed_images/{path}")
 
 
-def traverse(path: str, paths):
+def traverse(path: str, images):
     content = os.listdir(path)
 
     for entry in content:
@@ -57,7 +44,7 @@ def traverse(path: str, paths):
             continue
 
         if isdir:
-            traverse(new_path, paths)
+            traverse(new_path, images)
         else:
             root, ext = os.path.splitext(entry)
 
@@ -66,53 +53,55 @@ def traverse(path: str, paths):
             if ext == ".jpg" or ext == ".png":
 
                 try:
-                    image = Image.open(new_path)
+                    with open(new_path, 'rb') as f:
+                        image = Image.open(BytesIO(f.read()))
                 except Exception:
                     continue
 
-                paths.update({new_path: image})
+                images.update({new_path: image})
 
 
-async def start_reqs(path, to_request, failed, succeeded):
-    traverse(path, to_request)
+async def start(path, to_test, failed, succeeded):
+    traverse(path, to_test)
 
-    ic(f"Going to test {len(to_request)} images")
+    ic(f"Going to test {len(to_test)} images")
 
-    index = 0
     queue = {}
-    for path, image in to_request.items():
-        if index < WORKERS:
+    for path, image in to_test.items():
+        if len(queue) < WORKERS:
             queue[path] = image
         else:
             reqs = [
-                request(_path, failed, succeeded, _image)
+                _test(_path, failed, succeeded, _image)
                 for _path, _image in queue.items()
             ]
             await asyncio.gather(*reqs)
-
             queue = {path: image}
 
 
 async def retrieve_json():
-    path = os.getenv("TESTS_ROOT")
-
+    starting = time.time()
     to_request = {}
     failed = {}
     succeeded = {}
 
     try:
-        await start_reqs(path, to_request, failed, succeeded)
+        await start(FEED, to_request, failed, succeeded)
     except asyncio.exceptions.CancelledError:
         pass
 
     ic(f"Passed: {len(succeeded)} Failed: {len(failed)}")
 
-    with open("tests/succeeded.json", "w",) as outfile:
+    with open("tests/succeeded.json", "w", ) as outfile:
         json.dump(succeeded, outfile, indent=2)
 
     with open("tests/failed.json", "w") as outfile:
         json.dump(failed, outfile, indent=2)
 
+    total = time.time() - starting
+    total_tests = len(failed) + len(succeeded)
+    ic(f"Average time per request: {total / total_tests}")
 
-async def main():
-    await retrieve_json()
+
+def main():
+    asyncio.run(retrieve_json())
