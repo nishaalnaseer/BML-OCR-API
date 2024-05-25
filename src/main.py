@@ -82,7 +82,7 @@ async def image_to_blaz_str(image: UploadFile = File(...)) -> dict:
 
 @app.post("/blaz/data", status_code=201)
 async def image_to_data(image: UploadFile = File(...)) -> dict:
-    return await process_image_in_ppe(image, _image_to_json)
+    return await process_image_in_ppe(image, _image_to_data)
 
 
 @app.post("/blaz", status_code=201)
