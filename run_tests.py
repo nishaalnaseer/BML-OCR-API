@@ -1,4 +1,4 @@
-from tests.tests import main
+from tests.single_image import main
 import asyncio
 
 if __name__ == '__main__':
