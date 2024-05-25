@@ -12,24 +12,20 @@ from src.blob import make_blaz
 
 dotenv.load_dotenv()
 FEED = os.getenv('TESTS_FEED')
-WORKERS = 6  # int(os.getenv('TESTS_WORKERS'))
+WORKERS = int(os.getenv('TESTS_WORKERS'))
 
 
-async def _test(path: str, failed, success, image: Image):
-    with ProcessPoolExecutor() as executor:
-        future = executor.submit(make_blaz, *[image])
-
-        try:
-            result = future.result()
-            success[path] = "SUCCESS"
-            ic(result)
-            return result
-        except Exception as e:
-            ic(e)
-            failed[path] = str(e)
-            path = path.replace("\\", " ")
-            path = path.replace("/", " ")
-            image.save(f"tests/failed_images/{path}")
+def _test(path: str, image: Image):
+    try:
+        output = make_blaz(image)
+        ic(output)
+        return path, False, None
+    except Exception as e:
+        ic(e)
+        path = path.replace("\\", " ")
+        path = path.replace("/", " ")
+        image.save(f"tests/failed_images/{path}")
+        return path, True, e
 
 
 def traverse(path: str, images):
@@ -67,16 +63,31 @@ async def start(path, to_test, failed, succeeded):
     ic(f"Going to test {len(to_test)} images")
 
     queue = {}
-    for path, image in to_test.items():
-        if len(queue) < WORKERS:
-            queue[path] = image
-        else:
-            reqs = [
-                _test(_path, failed, succeeded, _image)
-                for _path, _image in queue.items()
-            ]
-            await asyncio.gather(*reqs)
-            queue = {path: image}
+    loop = asyncio.get_event_loop()
+    with ProcessPoolExecutor(max_workers=WORKERS) as executor:
+        # Create a list of tasks to run in the executor
+
+        for path, image in to_test.items():
+            if len(queue) < WORKERS:
+                queue[path] = image
+            else:
+                tasks = [
+                    loop.run_in_executor(executor, _test, _path, _image)
+                    for _path, _image in queue.items()
+                ]
+
+                # Await the completion of all tasks
+                results = await asyncio.gather(*tasks)
+
+                for result in results:
+                    path, error, exc = result
+
+                    if error:
+                        failed[path] = str(exc)
+                    else:
+                        succeeded[path] = "SUCCESS"
+
+                queue = {path: image}
 
 
 async def retrieve_json():
@@ -84,6 +95,7 @@ async def retrieve_json():
     to_request = {}
     failed = {}
     succeeded = {}
+    starting_tests = len(to_request)
 
     try:
         await start(FEED, to_request, failed, succeeded)
