@@ -4,8 +4,8 @@ from pydantic import BaseModel, Field
 
 
 class GrayLineNotFound(Exception):
-    def __init__(self):
-        super().__init__("Gray line not found")
+    def __init__(self, message="Gray line not found"):
+        super().__init__(message)
 
 
 class BLAZ(BaseModel):

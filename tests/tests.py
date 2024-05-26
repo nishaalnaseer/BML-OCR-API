@@ -71,6 +71,10 @@ def traverse(path: str, images):
 async def start(path, to_test, failed, succeeded):
     traverse(path, to_test)
 
+    if len(to_test) == 0:
+        ic(f"No images found in root path {path}, exiting")
+        return
+
     ic(f"Going to test {len(to_test)} images")
 
     queue = {}
