@@ -82,9 +82,10 @@ async def start(path, to_test, failed, succeeded):
     loop = asyncio.get_event_loop()
     with ProcessPoolExecutor(max_workers=WORKERS) as executor:
         # Create a list of tasks to run in the executor
+        paths = [path for path in to_test]
 
-        for path, image in to_test.items():
-            to_test.remove(path)  # free up memory, it doesnt grow on trees dang it
+        for path in paths:
+            image = to_test.pop(path)
             if len(queue) < WORKERS:
                 queue[path] = image
             else:
