@@ -1,16 +1,48 @@
 
 from collections import defaultdict
+from io import BytesIO
 from typing import List, Any
 import os
 import xmltodict
 from PIL import Image
 from icecream import ic
 from pytesseract import pytesseract
-
+import cv2
+import numpy as np
 from src.models import *
 
 if os.name == "nt":
     pytesseract.tesseract_cmd = os.getenv("TESSERACT_PATH")
+
+
+def preprocess_image(image: Image) -> Image:
+    # ref naffah
+    # Create a BytesIO object to hold the image bytes
+    image_bytes = BytesIO()
+
+    # Save the PIL image to the BytesIO object in JPEG format
+    image.save(image_bytes, "JPEG")
+
+    # Reset the pointer of the BytesIO object to the beginning
+    image_bytes.seek(0)
+
+    # Convert the BytesIO object to a NumPy array
+    file_bytes = np.frombuffer(image_bytes.read(), np.uint8)
+
+    # Decode the image from the NumPy array using OpenCV
+    img = cv2.imdecode(file_bytes, cv2.IMREAD_GRAYSCALE)
+
+    img = cv2.resize(img, None, fx=1.2, fy=1.2, interpolation=cv2.INTER_CUBIC)
+    # img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    kernel = np.ones((1, 1), np.uint8)
+    img = cv2.dilate(img, kernel, iterations=1)
+    img = cv2.erode(img, kernel, iterations=1)
+    img = cv2.GaussianBlur(img, (5, 5), 0)
+
+    pil_image = Image.fromarray(img)
+    pil_image.save("preprocessed.jpg", "JPEG")
+
+    return Image.fromarray(img)
 
 
 def _image_to_string(image: Image) -> str:
@@ -44,9 +76,12 @@ def _traverse(obj: dict | list, array: List[dict]):
             pass
 
 
-def is_white(_input: tuple[int]):
+def is_white(_input: int | List[int]):
+    if type(_input) is int:
+        return _input > 250
+
     for x in _input:
-        if x < 253:
+        if x < 250:
             return False
 
     return True
@@ -58,11 +93,10 @@ def get_next_gray_line(img: Image, start_cors: tuple[int, int]) -> tuple[int, in
     for y in range(start_y, img.height):
         cors = (134, y,)
         color = img.getpixel(cors)
-
         if not is_white(color):
             flag = True
             for x in range(start_x, 50 + start_x):
-                new_color = img.getpixel((x, y))
+                new_color = img.getpixel((x, y,))
                 if is_white(new_color):
                     flag = False
                     break
@@ -107,7 +141,9 @@ def _get_string(objects: dict, y_upper: int, y_lower: int, x_cors):
     return " ".join(strings)
 
 
-def make_blaz(image: Image) -> BLAZ | dict:
+def make_blaz(unprocessed_image: Image) -> BLAZ | dict:
+    image = preprocess_image(unprocessed_image)
+
     xml = pytesseract.image_to_alto_xml(image)
     image_content = xmltodict.parse(xml)
 

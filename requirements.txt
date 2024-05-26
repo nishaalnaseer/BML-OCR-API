@@ -3,6 +3,8 @@ asttokens==2.4.1
 colorama==0.4.6
 executing==2.0.1
 icecream==2.1.3
+numpy==1.26.4
+opencv-python==4.9.0.80
 packaging==24.0
 pillow==10.3.0
 pydantic==2.7.1

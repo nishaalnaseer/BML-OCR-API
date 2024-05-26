@@ -11,4 +11,4 @@ def main():
         _bytes = BytesIO(f.read())
     image = Image.open(_bytes)
     result = make_blaz(image)
-    # ic(result)
+    ic(result)
