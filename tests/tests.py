@@ -84,6 +84,7 @@ async def start(path, to_test, failed, succeeded):
         # Create a list of tasks to run in the executor
 
         for path, image in to_test.items():
+            to_test.remove(path)  # free up memory, it doesnt grow on trees dang it
             if len(queue) < WORKERS:
                 queue[path] = image
             else:
