@@ -24,6 +24,7 @@ def _test(path: str, image: Image):
         ic(e)
         path = path.replace("\\", " ")
         path = path.replace("/", " ")
+        path = f"tests/failed_images/{path}"
 
         if image.mode == 'RGBA':
             # Create a new image with an opaque background (white)
@@ -73,7 +74,7 @@ async def start(path, to_test, failed, succeeded):
 
     if len(to_test) == 0:
         ic(f"No images found in root path {path}, exiting")
-        return
+        return -1
 
     ic(f"Going to test {len(to_test)} images")
 
@@ -113,7 +114,11 @@ async def retrieve_json():
     starting_tests = len(to_request)
 
     try:
-        await start(FEED, to_request, failed, succeeded)
+        result = await start(FEED, to_request, failed, succeeded)
+
+        if result == -1:
+            return
+
     except asyncio.exceptions.CancelledError:
         pass
 
