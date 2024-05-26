@@ -24,7 +24,18 @@ def _test(path: str, image: Image):
         ic(e)
         path = path.replace("\\", " ")
         path = path.replace("/", " ")
-        image.save(f"tests/failed_images/{path}")
+
+        if image.mode == 'RGBA':
+            # Create a new image with an opaque background (white)
+            background = Image.new("RGB", image.size, (255, 255, 255))
+            # Paste the RGBA image onto the background image
+            background.paste(image, (0, 0), image)
+            # Save the image as JPEG
+            background.save(path, "JPEG")
+        else:
+            # If the image is not RGBA, save it directly
+            image.save(path, "JPEG")
+
         return path, True, e
 
 
