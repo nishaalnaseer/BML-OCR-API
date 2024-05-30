@@ -1,6 +1,6 @@
 from icecream import ic
 
-from tests.tests import main
+from tests.single_image import main
 import time
 
 if __name__ == '__main__':

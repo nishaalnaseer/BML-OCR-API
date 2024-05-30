@@ -1,6 +1,6 @@
-
+import random
 from collections import defaultdict
-from typing import List, Any
+from typing import List, Any, Callable, Tuple
 import os
 import xmltodict
 from PIL import Image
@@ -52,18 +52,45 @@ def is_white(_input: tuple[int]):
     return True
 
 
-def get_next_gray_line(img: Image, start_cors: tuple[int, int]) -> tuple[int, int]:
+def is_black(_input: tuple[int]):
+    for x in _input:
+        if x < 35:
+            return False
+
+    return True
+
+
+def is_bg_white(image: Image) -> True:
+    white = 0
+    black = 0
+    for x in range(500):
+        x_cor = random.randint(0, image.width - 1)
+        y_cor = random.randint(0, image.height - 1)
+
+        pixel = image.getpixel((x_cor, y_cor))
+        if is_white(pixel):
+            white += 1
+        elif is_black(pixel):
+            black += 1
+
+    return white > black
+
+
+def get_next_gray_line(
+        img: Image, start_cors: tuple[int, int],
+        detector: Callable[[Tuple[int]], bool]
+) -> tuple[int, int]:
     start_x, start_y = start_cors[0], start_cors[1]
 
     for y in range(start_y, img.height):
         cors = (134, y,)
         color = img.getpixel(cors)
 
-        if not is_white(color):
+        if not detector(color):
             flag = True
             for x in range(start_x, 50 + start_x):
                 new_color = img.getpixel((x, y))
-                if is_white(new_color):
+                if detector(new_color):
                     flag = False
                     break
 
@@ -73,8 +100,11 @@ def get_next_gray_line(img: Image, start_cors: tuple[int, int]) -> tuple[int, in
     raise GrayLineNotFound()
 
 
-def _get_next_section(img: Image, y_start: int, x_crop: int, blocks) -> tuple[str, int]:
-    _end = get_next_gray_line(img, (134, y_start + 10,))
+def _get_next_section(
+        img: Image, y_start: int, x_crop: int,
+        blocks: dict[str, any], detector: Callable[[Tuple[int]], bool]
+) -> tuple[str, int]:
+    _end = get_next_gray_line(img, (134, y_start + 10,), detector)
     y_end = _end[1]
 
     _string = _get_string(blocks, y_start + 10, y_end, x_crop)
@@ -89,14 +119,20 @@ def _format_string(string: str):
     return string.replace("\n", "").replace(" ", "")
 
 
-def _append_string(_object, y_upper, y_lower, x_cors, content):
+def _append_string(
+        _object: dict | list,
+        y_upper: int,
+        y_lower: int,
+        x_cors: int,
+        content: list
+):
     y_value = int(_object["@VPOS"])
     x_value = int(_object["@HPOS"]) + int(_object["@WIDTH"])
     if y_lower > y_value > y_upper and x_cors < x_value:
         content.append(_object)
 
 
-def _get_string(objects: dict, y_upper: int, y_lower: int, x_cors):
+def _get_string(objects: dict, y_upper: int, y_lower: int, x_cors: int):
     content = []
 
     for _object in objects.values():
@@ -115,6 +151,11 @@ def make_blaz(image: Image) -> BLAZ | dict:
 
     string_block_array: List[Any] = []
 
+    if is_bg_white(image):
+        detector = is_white
+    else:
+        detector = is_black
+
     for block in blocks:
         text_block = block["TextBlock"]
         _traverse(text_block, string_block_array)
@@ -122,7 +163,7 @@ def make_blaz(image: Image) -> BLAZ | dict:
     blocks = defaultdict(list)
     for block in string_block_array:
         _key = block["@CONTENT"]
-
+        ic(block)
         blocks[_key].append(block)
 
     key_blocks: [str, dict] = {
@@ -153,28 +194,61 @@ def make_blaz(image: Image) -> BLAZ | dict:
     message_section_start = status_end + 10
     start_x = 134
 
-    message_start = get_next_gray_line(image, (start_x, message_section_start,))
-
-    message, message_end = _get_next_section(image, message_start[1] + 10, message_x_cors, blocks)
-    reference, ref_end = _get_next_section(image, message_end + 10, reference_x_cors, blocks)
-    _datetime, datetime_end = _get_next_section(image, ref_end + 10, date_x_cors, blocks)
-    sender, sender_end = _get_next_section(image, datetime_end + 10, from_x_cors, blocks)
-    receiver, receiver_end = _get_next_section(image, sender_end + 10, from_x_cors, blocks)
-    amount, amount_end = _get_next_section(image, receiver_end + 10, amount_x_cors, blocks)
+    message_start = get_next_gray_line(
+        image, (start_x, message_section_start,), detector
+    )
+    message, message_end = _get_next_section(
+        image, message_start[1] + 10, message_x_cors, blocks, detector
+    )
+    reference, ref_end = _get_next_section(
+        image, message_end + 10, reference_x_cors, blocks, detector
+    )
+    _datetime, datetime_end = _get_next_section(
+        image, ref_end + 10, date_x_cors, blocks, detector
+    )
+    sender, sender_end = _get_next_section(
+        image, datetime_end + 10, from_x_cors, blocks, detector
+    )
+    receiver, receiver_end = _get_next_section(
+        image, sender_end + 10, from_x_cors, blocks, detector
+    )
+    amount, amount_end = _get_next_section(
+        image, receiver_end + 10, amount_x_cors, blocks, detector
+    )
 
     try:
         remarks_block = key_blocks["Remarks"]
         remarks_x_crop = get_x_crop_cors(remarks_block)
-        remarks, remarks_end = _get_next_section(image, amount_end + 10, remarks_x_crop, blocks)
+        remarks, remarks_end = _get_next_section(
+            image, amount_end + 10, remarks_x_crop, blocks, detector
+        )
     except KeyError:
         remarks = None
         pass
+
+    status = status,
+    message = message,
+    reference = reference.replace(" ", ""),
+    date = datetime.strptime(_datetime, '%d/%m/%Y %H:%M'),
+    receiver = receiver,
+    sender = sender,
+    amount = amount,
+    remarks = remarks
+
+    ic(status)
+    ic(message)
+    ic(reference)
+    ic(datetime)
+    ic(receiver)
+    ic(sender)
+    ic(amount)
+    ic(remarks)
 
     blaz = BLAZ(
         status=status,
         message=message,
         reference=reference,
-        date=datetime.strptime(_datetime, '%d/%m/%Y %H:%M'),
+        date=date,
         receiver=receiver,
         sender=sender,
         amount=amount,
